@@ -29,11 +29,13 @@ class MediciIE(InfoExtractor):
             if 'TYPE=SUBTITLES' in line:
                 sub_attr = parse_m3u8_attributes(line)
                 lang = sub_attr.get('LANGUAGE')
-                sub_url = sub_attr.get('URI').replace(lang + '_manifest.m3u8', 'vtt_' + lang + '.webvtt')
+                self.to_screen(sub_attr)
+                sub_url = sub_attr.get('URI').replace('.m3u8', '.webvtt')
                 subtitles.setdefault(lang, []).append({
                     'url': sub_url,
                     'ext': 'srt',
                 })
+        self.to_screen(subtitles)
         return subtitles
 
     def _real_extract(self, url):
