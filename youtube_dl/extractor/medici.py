@@ -50,11 +50,9 @@ class MediciIE(InfoExtractor):
             video_id, transform_source=js_to_json)
 
         info_dict = self._parse_jwplayer_data(jw_config, video_id, require_title=False)
-        """ self.to_screen(info_dict) """
 
         m3u8_url = info_dict['formats'][0]['manifest_url']
 
-        self.to_screen(m3u8_url)
         m3u8_doc, _ = self._download_webpage_handle(
             m3u8_url, video_id,
             note='Downloading m3u8 information',
@@ -63,14 +61,20 @@ class MediciIE(InfoExtractor):
         formats = self._parse_m3u8_formats(
             m3u8_doc, m3u8_url, ext='mp4',
             entry_protocol='m3u8_native', m3u8_id='hls')
+        self._sort_formats(formats)
 
         subtitles = self.extract_subtitles(m3u8_doc)
+        title = self._og_search_title(webpage)
+        description = self._html_search_meta('description', webpage)
+        video_thumbnail = self._og_search_thumbnail(webpage)
 
         info_dict.update({
-            'title': self._og_search_title(webpage),
-            'description': self._og_search_description(webpage),
+            'id': video_id,
+            'title': title,
+            'description': description,
             'formats': formats,
-            'subtitles': subtitles
+            'subtitles': subtitles,
+            'thumbnail': video_thumbnail
         })
 
         return info_dict
