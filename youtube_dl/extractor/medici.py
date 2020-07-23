@@ -5,7 +5,7 @@ import re
 
 
 from .common import InfoExtractor
-from ..utils import js_to_json
+from ..utils import (js_to_json, parse_m3u8_attributes)
 
 
 class MediciIE(InfoExtractor):
@@ -23,6 +23,19 @@ class MediciIE(InfoExtractor):
         },
     }
 
+    def _get_subtitles(self, m3u8_doc):
+        subtitles = {}
+        for line in m3u8_doc.splitlines():
+            if 'TYPE=SUBTITLES' in line:
+                sub_attr = parse_m3u8_attributes(line)
+                lang = sub_attr.get('LANGUAGE')
+                sub_url = sub_attr.get('URI').replace(lang + '_manifest.m3u8', 'vtt_' + lang + '.webvtt')
+                subtitles.setdefault(lang, []).append({
+                    'url': sub_url,
+                    'ext': 'srt',
+                })
+        return subtitles
+
     def _real_extract(self, url):
 
         video_id = self._match_id(url)
@@ -34,13 +47,28 @@ class MediciIE(InfoExtractor):
                 webpage, 'jw config', group='options'),
             video_id, transform_source=js_to_json)
 
-        self.to_screen(jw_config)
         info_dict = self._parse_jwplayer_data(jw_config, video_id, require_title=False)
+        """ self.to_screen(info_dict) """
 
-        self.to_screen(info_dict)
+        m3u8_url = info_dict['formats'][0]['manifest_url']
 
-        """ info_dict.update({
+        self.to_screen(m3u8_url)
+        m3u8_doc, _ = self._download_webpage_handle(
+            m3u8_url, video_id,
+            note='Downloading m3u8 information',
+            errnote='Failed to download m3u8 information')
+
+        formats = self._parse_m3u8_formats(
+            m3u8_doc, m3u8_url, ext='mp4',
+            entry_protocol='m3u8_native', m3u8_id='hls')
+
+        subtitles = self.extract_subtitles(m3u8_doc)
+
+        info_dict.update({
             'title': self._og_search_title(webpage),
             'description': self._og_search_description(webpage),
-        }) """
+            'formats': formats,
+            'subtitles': subtitles
+        })
+
         return info_dict
